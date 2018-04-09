@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+    <head>
+        <title>one_client.py peer html</title>
+        <script src="/static/jquery-2.1.4.js"></script>
+        <script>
+            $(document).ready(function(){
+                function setHeight(e){
+                    $("#top").height(window.innerHeight-20);
+                    $("#div").height(window.innerHeight-40);
+                }
+                setHeight();
+                $(window).on("resize", setHeight);
+                $("#submit").click(function(e){
+                    var ip = $("#ip").val();
+                    var port = $("#port").val();
+                    if(!ip || !port){
+                        return;
+                    }
+                    var url = "ws://"+ip+":"+port+"/ws";
+                    console.log("ws=["+url+"]");
+                    $(this).parent().remove();
+                    $("#div_cmd").show();
+                    var div = $("#div");
+                    var cmd = $("#cmd");
+                    var ws = null;
+                    var cmd_list = [];
+                    var cmd_flag = false;
+                    var cmd_start = "";
+                    var cmd_index = -1;
+                    cmd.keypress(function(e){
+                        if(10 == e.keyCode || 13 == e.keyCode){
+                            if(ws){
+                                var text = cmd.val();
+                                if(!text){
+                                    return;
+                                }
+                                ws.send(text);
+                                cmd.val("");
+                                //div.append("<pre>-------"+(new Date)+"--------\n"+text+"</pre>");
+                                if(0 == cmd_list.length || text != cmd_list[cmd_list.length-1]){
+                                    cmd_list.push(text);
+                                }
+                                cmd_flag = false;
+                            }
+                        }else if(91 == e.keyCode){
+                            if(!cmd_flag){
+                                var text = cmd.val();
+                                cmd_start = text.substr(0, text.length-1);
+                                cmd_index = cmd_list.length - 1;
+                                cmd_flag = true;
+                            }
+                            while(cmd_index >= 0){
+                                if(!cmd_start || cmd_list[cmd_index].startsWith(cmd_start)){
+                                    cmd.val(cmd_list[cmd_index]);
+                                    console.log("1=["+cmd.val()+"] 2=["+cmd_list[cmd_index]+"]");
+                                    cmd_index--;
+                                    return false;
+                                }else{
+                                    cmd_index--;
+                                }
+                            }
+                        }else if(93 == e.keyCode){
+                            if(cmd_flag){
+                                while(cmd_index < cmd_list.length - 2){
+                                    if(!cmd_start || cmd_list[cmd_index+2].startsWith(cmd_start)){
+                                        cmd.val(cmd_list[cmd_index+2]);
+                                        cmd_index++;
+                                        return false;
+                                    }
+                                    cmd_index++;
+                                }
+                                cmd.val(cmd_start);
+                            }
+                        }
+                    });
+                    function start(){
+                        var ws2 = new WebSocket(url);
+                        ws2.onopen = function(e){
+                            ws = ws2;
+                        };
+                        ws2.onmessage = function(e){
+                            div.append("<pre>------"+(new Date)+"------\n"+e.data+"</pre>");
+                            div.scrollTop(div[0].scrollHeight);
+                        };
+                        ws2.onclose = function(e){
+                            ws = null;
+                            setTimeout(start, 2000);
+                        };
+                    }
+                    start();
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="top" style="width:100%;">
+            <div id="div" style="width:100%;overflow-y:auto;"></div>
+            <div style="width:100%;height:25px;">
+                <div>
+                    ip:<input type="text" id="ip" value="192.168.0.43" /> port:<input type="text" id="port" value="9021" /><button id="submit">submit</button>
+                </div>
+                <div id="div_cmd" style="display:none;">
+                    cmd:<input type="text" id="cmd" size="80" />
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
